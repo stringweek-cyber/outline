@@ -307,7 +307,9 @@
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
         const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+        // willReadFrequently 옵션을 추가하여 캔버스 읽기 성능을 최적화합니다.
+        // 이는 toDataURL() 호출 시 다운로드 결과에 영향을 줄 수 있습니다.
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         
         const controls = document.getElementById('controls');
         const previewContainer = document.getElementById('previewContainer');
@@ -384,7 +386,7 @@
 
             } catch (error) {
                 console.error("Download failed:", error);
-                alert("다운로드 중 오류가 발생했습니다. 브라우저 보안 설정이나 이미지를 확인해주세요.");
+                alert("이미지 저장 중 문제가 발생했습니다. 메모리가 부족하거나 브라우저 보안 설정 문제일 수 있습니다. 잠시 후 다시 시도해보세요.");
             }
         });
 
