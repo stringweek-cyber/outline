@@ -286,7 +286,7 @@
                     <label>테두리 두께</label>
                     <span id="widthValue">5px</span>
                 </div>
-                <input type="range" id="borderWidth" min="0" max="10" value="5">
+                <input type="range" id="borderWidth" min="0" max="30" value="5">
             </div>
 
             <div class="control-group">
@@ -432,25 +432,30 @@
             if (!originalImage) return;
 
             const thickness = parseInt(borderWidthInput.value);
-            const radius = parseInt(borderRadiusInput.value);
+            // 슬라이더의 원본 값을 가져옵니다.
+            const rawRadius = parseInt(borderRadiusInput.value);
 
-            // Update text displays
-            widthValue.textContent = `${thickness}px`;
-            radiusValue.textContent = `${radius}px`;
-
-            // Canvas size matches original image resolution
+            // 캔버스 크기를 원본 이미지 크기에 맞춥니다.
             canvas.width = originalImage.width;
             canvas.height = originalImage.height;
 
             const w = canvas.width;
             const h = canvas.height;
 
-            // Clear
-            ctx.clearRect(0, 0, w, h);
-            ctx.save();
+            // 그리기용 반지름을 계산합니다. 이미지 크기의 절반을 넘지 않도록 제한합니다.
+            const maxRadius = Math.min(w, h) / 2;
+            let radius = Math.min(rawRadius, maxRadius);
+            radius = Math.max(0, radius); // 음수가 되지 않도록 합니다.
 
-            // Create Rounded Rectangle Path
-            // We use this path for both clipping the image and drawing the border
+            // 텍스트 표시 업데이트 (슬라이더의 원본 값을 보여줍니다)
+            widthValue.textContent = `${thickness}px`;
+            radiusValue.textContent = `${rawRadius}px`;
+
+            // 캔버스 초기화
+            ctx.clearRect(0, 0, w, h);
+
+            // --- 1단계: 이미지를 둥근 사각형으로 클리핑하여 그리기 ---
+            ctx.save();
             ctx.beginPath();
             ctx.moveTo(radius, 0);
             ctx.lineTo(w - radius, 0);
@@ -463,21 +468,66 @@
             ctx.quadraticCurveTo(0, 0, radius, 0);
             ctx.closePath();
 
-            // 1. Clip and Draw Image
             ctx.clip();
             ctx.drawImage(originalImage, 0, 0);
+            ctx.restore(); // 클리핑 해제
 
-            // 2. Draw Border (Inner Stroke Simulation)
+            // --- 2단계: 안쪽 테두리 그리기 ---
             if (thickness > 0) {
-                // If we just stroke(), half the line is outside the clip.
-                // To make a clean inner border of size X, we set lineWidth to X * 2.
-                // Since the outer half is clipped away, only the inner half remains.
-                ctx.lineWidth = thickness * 2; 
-                ctx.strokeStyle = '#000000'; // Pure Black
-                ctx.stroke();
-            }
+                ctx.save();
+                ctx.strokeStyle = '#000000'; // 순수한 검은색
 
-            ctx.restore();
+                // 테두리 두께의 절반만큼 안쪽으로 들어간 경로를 생성하고, 
+                // 그 경로를 따라 테두리 두께만큼 선을 그립니다.
+                // 이렇게 하면 선의 바깥쪽이 이미지의 외곽선과 정확히 일치하게 됩니다.
+                const inset = thickness / 2;
+                const innerW = w - 2 * inset;
+                const innerH = h - 2 * inset;
+
+                // 테두리가 너무 두꺼워서 이미지를 모두 덮는 경우
+                if (innerW <= 0 || innerH <= 0) {
+                    // 전체를 검은색 둥근 사각형으로 채웁니다.
+                    ctx.beginPath();
+                    ctx.moveTo(radius, 0);
+                    ctx.lineTo(w - radius, 0);
+                    ctx.quadraticCurveTo(w, 0, w, radius);
+                    ctx.lineTo(w, h - radius);
+                    ctx.quadraticCurveTo(w, h, w - radius, h);
+                    ctx.lineTo(radius, h);
+                    ctx.quadraticCurveTo(0, h, 0, h - radius);
+                    ctx.lineTo(0, radius);
+                    ctx.quadraticCurveTo(0, 0, radius, 0);
+                    ctx.closePath();
+                    ctx.fillStyle = '#000000';
+                    ctx.fill();
+                } else {
+                    // 안쪽 경로를 그리고 선을 긋습니다.
+                    // 안쪽 경로의 모서리 반지름은 inset 만큼 줄어듭니다.
+                    let innerRadius = radius - inset;
+                    innerRadius = Math.max(0, innerRadius); // 반지름이 음수가 되지 않도록 함
+
+                    const x = inset;
+                    const y = inset;
+                    const right = w - inset;
+                    const bottom = h - inset;
+
+                    ctx.beginPath();
+                    ctx.moveTo(x + innerRadius, y);
+                    ctx.lineTo(right - innerRadius, y);
+                    ctx.quadraticCurveTo(right, y, right, y + innerRadius);
+                    ctx.lineTo(right, bottom - innerRadius);
+                    ctx.quadraticCurveTo(right, bottom, right - innerRadius, bottom);
+                    ctx.lineTo(x + innerRadius, bottom);
+                    ctx.quadraticCurveTo(x, bottom, x, bottom - innerRadius);
+                    ctx.lineTo(x, y + innerRadius);
+                    ctx.quadraticCurveTo(x, y, x + innerRadius, y);
+                    ctx.closePath();
+
+                    ctx.lineWidth = thickness;
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
         }
     </script>
 </body>
