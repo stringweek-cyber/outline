@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>심플 포토 보더</title>
+    <title>심플 포토 보더 - 일괄 처리</title>
+    <!-- JSZip 라이브러리 제거 (개별 다운로드로 변경됨) -->
     <style>
         :root {
             --bg-color: #f8f9fa;
@@ -12,6 +13,7 @@
             --text-secondary: #6b7280;
             --border-color: #e5e7eb;
             --accent-color: #000000;
+            --active-thumb: #3b82f6;
         }
 
         * {
@@ -33,7 +35,7 @@
 
         .container {
             width: 100%;
-            max-width: 600px;
+            max-width: 800px; /* 여러 장 미리보기를 위해 폭을 조금 늘림 */
             background: var(--surface-color);
             padding: 24px;
             border-radius: 20px;
@@ -89,9 +91,46 @@
             display: none;
         }
 
+        /* Thumbnails List */
+        .thumbnails-container {
+            display: none;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            white-space: nowrap;
+            padding-bottom: 10px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .thumbnails-container.active {
+            display: flex;
+            gap: 10px;
+        }
+
+        .thumb-item {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            object-fit: cover;
+            cursor: pointer;
+            border: 2px solid transparent;
+            opacity: 0.6;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .thumb-item:hover {
+            opacity: 1;
+        }
+
+        .thumb-item.active {
+            border-color: var(--accent-color);
+            opacity: 1;
+            transform: scale(1.05);
+        }
+
         /* Controls */
         .controls {
-            display: none; /* Hidden by default */
+            display: none;
             background: #f3f4f6;
             padding: 20px;
             border-radius: 16px;
@@ -194,10 +233,23 @@
             overflow: hidden;
             padding: 20px;
             min-height: 200px;
+            position: relative;
         }
 
         .preview-container.active {
             display: flex;
+        }
+
+        .preview-label {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            pointer-events: none;
         }
 
         canvas {
@@ -207,6 +259,16 @@
         }
 
         /* Buttons */
+        .btn-group {
+            display: none;
+            gap: 10px;
+            flex-direction: column;
+        }
+        
+        .btn-group.active {
+            display: flex;
+        }
+
         .btn {
             width: 100%;
             padding: 14px;
@@ -222,26 +284,22 @@
             transform: scale(0.98);
         }
 
-        .btn-download {
+        .btn-download-all {
             background-color: var(--accent-color);
             color: white;
-            display: none;
         }
-        
-        .btn-download.active {
-            display: block;
+
+        .btn-download-one {
+            background-color: #4b5563;
+            color: white;
+            font-size: 0.9rem;
         }
 
         .btn-reset {
             background-color: transparent;
             color: var(--text-secondary);
-            margin-top: 10px;
+            margin-top: 5px;
             font-size: 0.9rem;
-            display: none;
-        }
-        
-        .btn-reset.active {
-            display: block;
         }
 
         @media (max-width: 480px) {
@@ -255,25 +313,30 @@
 
     <div class="container">
         <header>
-            <h1>테두리 만들기</h1>
-            <p class="subtitle">사진에 깔끔한 블랙 테두리를 입혀보세요</p>
+            <h1>일괄 테두리 만들기</h1>
+            <p class="subtitle">여러 장의 사진을 한 번에 편집하세요</p>
         </header>
 
         <!-- Upload Zone -->
         <div class="upload-area" id="dropZone">
             <span class="upload-icon">📷</span>
-            <div class="upload-text">사진을 클릭하거나 드래그하세요</div>
-            <input type="file" id="fileInput" accept="image/*">
+            <div class="upload-text">사진들을 클릭하거나 드래그하세요 (여러 장 가능)</div>
+            <!-- multiple 속성 추가 -->
+            <input type="file" id="fileInput" accept="image/*" multiple>
         </div>
+
+        <!-- Thumbnails List -->
+        <div class="thumbnails-container" id="thumbnailList"></div>
 
         <!-- Canvas Preview -->
         <div class="preview-container" id="previewContainer">
+            <div class="preview-label" id="previewLabel">미리보기</div>
             <canvas id="canvas"></canvas>
         </div>
 
         <!-- Controls -->
         <div class="controls" id="controls">
-            <!-- Lock Checkbox Added -->
+            <!-- Lock Checkbox -->
             <div class="lock-control">
                 <label class="lock-label">
                     <input type="checkbox" id="lockSettings">
@@ -299,21 +362,27 @@
         </div>
 
         <!-- Action Buttons -->
-        <button class="btn btn-download" id="downloadBtn">이미지 다운로드 (PNG)</button>
-        <button class="btn btn-reset" id="resetBtn">다른 사진 선택하기</button>
+        <div class="btn-group" id="btnGroup">
+            <button class="btn btn-download-all" id="downloadAllBtn">📦 모든 사진 개별 다운로드</button>
+            <button class="btn btn-download-one" id="downloadOneBtn">현재 사진만 다운로드</button>
+            <button class="btn btn-reset" id="resetBtn">처음으로 (초기화)</button>
+        </div>
     </div>
 
     <script>
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
         const canvas = document.getElementById('canvas');
-        // willReadFrequently 옵션을 추가하여 캔버스 읽기 성능을 최적화합니다.
-        // 이는 toDataURL() 호출 시 다운로드 결과에 영향을 줄 수 있습니다.
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         
         const controls = document.getElementById('controls');
         const previewContainer = document.getElementById('previewContainer');
-        const downloadBtn = document.getElementById('downloadBtn');
+        const thumbnailList = document.getElementById('thumbnailList');
+        const btnGroup = document.getElementById('btnGroup');
+        const previewLabel = document.getElementById('previewLabel');
+        
+        const downloadAllBtn = document.getElementById('downloadAllBtn');
+        const downloadOneBtn = document.getElementById('downloadOneBtn');
         const resetBtn = document.getElementById('resetBtn');
         
         const borderWidthInput = document.getElementById('borderWidth');
@@ -322,21 +391,20 @@
         const radiusValue = document.getElementById('radiusValue');
         const lockSettings = document.getElementById('lockSettings');
 
-        let originalImage = null;
+        // 상태 관리
+        let imagesData = []; // { name: string, img: ImageObject } 배열
+        let currentIndex = 0; // 현재 미리보기 중인 이미지 인덱스
 
         // --- Event Listeners ---
         
-        // Lock Settings Logic
         lockSettings.addEventListener('change', (e) => {
             const isLocked = e.target.checked;
             borderWidthInput.disabled = isLocked;
             borderRadiusInput.disabled = isLocked;
         });
 
-        // Click to upload
         dropZone.addEventListener('click', () => fileInput.click());
 
-        // Drag & Drop
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
             dropZone.classList.add('dragover');
@@ -350,185 +418,288 @@
             e.preventDefault();
             dropZone.classList.remove('dragover');
             if (e.dataTransfer.files.length) {
-                handleFile(e.dataTransfer.files[0]);
+                handleFiles(Array.from(e.dataTransfer.files));
             }
         });
 
-        // File Selection
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length) {
-                handleFile(e.target.files[0]);
+                handleFiles(Array.from(e.target.files));
             }
         });
 
-        // Sliders
-        borderWidthInput.addEventListener('input', updateCanvas);
-        borderRadiusInput.addEventListener('input', updateCanvas);
+        borderWidthInput.addEventListener('input', updateCurrentPreview);
+        borderRadiusInput.addEventListener('input', updateCurrentPreview);
 
-        // Download (Improved Compatibility)
-        downloadBtn.addEventListener('click', () => {
-            if (!originalImage) return;
+        // Single Download
+        downloadOneBtn.addEventListener('click', () => {
+            if (imagesData.length === 0) return;
+            downloadSingleImage(currentIndex);
+        });
+
+        // Batch Download (Sequential Individual Files)
+        downloadAllBtn.addEventListener('click', async () => {
+            if (imagesData.length === 0) return;
+            
+            // confirm(확인창) 제거 - 샌드박스 환경에서 차단될 수 있음
+            // 바로 다운로드 시작
+            
+            downloadAllBtn.disabled = true;
+            const originalBtnText = downloadAllBtn.textContent;
+
+            const thickness = parseInt(borderWidthInput.value);
+            const radius = parseInt(borderRadiusInput.value);
+            const total = imagesData.length;
 
             try {
-                // Generate Data URL
-                const dataUrl = canvas.toDataURL('image/png');
-                
-                // Create temporary link
-                const link = document.createElement('a');
-                const timestamp = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 14);
-                link.download = `framed_photo_${timestamp}.png`;
-                link.href = dataUrl;
+                // 모든 이미지를 순회하며 개별 다운로드 실행
+                for (let i = 0; i < total; i++) {
+                    // 버튼 텍스트로 진행상황 표시
+                    downloadAllBtn.textContent = `⏳ 다운로드 중... (${i + 1}/${total})`;
 
-                // FIX: Append to body to ensure click works in all browsers (Firefox, etc)
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                    const item = imagesData[i];
+                    
+                    // 임시 캔버스 생성
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = item.img.width;
+                    tempCanvas.height = item.img.height;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    
+                    // 테두리 그리기
+                    drawFrame(tempCtx, item.img, tempCanvas.width, tempCanvas.height, thickness, radius);
+                    
+                    // 다운로드 링크 생성 및 클릭 트리거
+                    const dataUrl = tempCanvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    
+                    // 파일명 정리 (확장자 중복 방지)
+                    let baseName = item.name.replace(/\.[^/.]+$/, ""); // 확장자 제거
+                    let fileName = `framed_${baseName}.png`;
+                    
+                    link.download = fileName;
+                    link.href = dataUrl;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
 
-            } catch (error) {
-                console.error("Download failed:", error);
-                alert("이미지 저장 중 문제가 발생했습니다. 메모리가 부족하거나 브라우저 보안 설정 문제일 수 있습니다. 잠시 후 다시 시도해보세요.");
+                    // 브라우저가 다운로드를 누락하지 않도록 약간의 간격을 둠 (0.5초)
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+            } catch (err) {
+                console.error(err);
+                // alert 대신 버튼 텍스트로 에러 표시
+                downloadAllBtn.textContent = "❌ 오류 발생 (콘솔 확인)";
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            } finally {
+                downloadAllBtn.textContent = originalBtnText; // "📦 모든 사진 개별 다운로드"
+                downloadAllBtn.disabled = false;
             }
         });
 
-        // Reset
-        resetBtn.addEventListener('click', () => {
-            originalImage = null;
+        resetBtn.addEventListener('click', resetAll);
+
+        // --- Functions ---
+
+        async function handleFiles(files) {
+            // 이미지 파일만 필터링
+            const imageFiles = files.filter(f => f.type.startsWith('image/'));
+            if (imageFiles.length === 0) {
+                alert('이미지 파일만 선택해주세요.');
+                return;
+            }
+
+            // 파일 로딩
+            const promises = imageFiles.map(file => {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => resolve({ name: file.name, img: img });
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                });
+            });
+
+            const loadedImages = await Promise.all(promises);
+            
+            // 기존 데이터에 추가하거나 새로 시작
+            // 여기서는 새로 시작하는 방식 (기존 목록 덮어쓰기)
+            imagesData = loadedImages;
+            currentIndex = 0;
+
+            if (imagesData.length > 0) {
+                showUI();
+                renderThumbnails();
+                updateCurrentPreview();
+            }
+        }
+
+        function showUI() {
+            dropZone.style.display = 'none';
+            controls.classList.add('active');
+            previewContainer.classList.add('active');
+            thumbnailList.classList.add('active');
+            btnGroup.classList.add('active');
+        }
+
+        function resetAll() {
+            imagesData = [];
+            currentIndex = 0;
             fileInput.value = '';
             
             dropZone.style.display = 'block';
             controls.classList.remove('active');
             previewContainer.classList.remove('active');
-            downloadBtn.classList.remove('active');
-            resetBtn.classList.remove('active');
-        });
-
-        // --- Core Functions ---
-
-        function handleFile(file) {
-            if (!file.type.startsWith('image/')) {
-                alert('이미지 파일만 업로드해주세요.');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    originalImage = img;
-                    
-                    // Show UI elements
-                    dropZone.style.display = 'none';
-                    controls.classList.add('active');
-                    previewContainer.classList.add('active');
-                    downloadBtn.classList.add('active');
-                    resetBtn.classList.add('active');
-                    
-                    updateCanvas();
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
+            thumbnailList.classList.remove('active');
+            btnGroup.classList.remove('active');
+            thumbnailList.innerHTML = '';
         }
 
-        function updateCanvas() {
-            if (!originalImage) return;
+        function renderThumbnails() {
+            thumbnailList.innerHTML = '';
+            imagesData.forEach((item, idx) => {
+                const thumb = document.createElement('img');
+                thumb.src = item.img.src;
+                thumb.className = `thumb-item ${idx === currentIndex ? 'active' : ''}`;
+                thumb.onclick = () => {
+                    currentIndex = idx;
+                    updateCurrentPreview();
+                    renderThumbnails(); // 하이라이트 갱신
+                };
+                thumbnailList.appendChild(thumb);
+            });
+        }
+
+        function updateCurrentPreview() {
+            if (imagesData.length === 0) return;
+            const item = imagesData[currentIndex];
+            
+            // 레이블 업데이트
+            previewLabel.textContent = `미리보기: ${item.name} (${currentIndex + 1}/${imagesData.length})`;
+            widthValue.textContent = `${borderWidthInput.value}px`;
+            radiusValue.textContent = `${borderRadiusInput.value}px`;
 
             const thickness = parseInt(borderWidthInput.value);
-            // 슬라이더의 원본 값을 가져옵니다.
-            const rawRadius = parseInt(borderRadiusInput.value);
+            const radius = parseInt(borderRadiusInput.value);
 
-            // 캔버스 크기를 원본 이미지 크기에 맞춥니다.
-            canvas.width = originalImage.width;
-            canvas.height = originalImage.height;
+            // 캔버스 크기 조정
+            canvas.width = item.img.width;
+            canvas.height = item.img.height;
 
-            const w = canvas.width;
-            const h = canvas.height;
+            // 그리기 함수 호출
+            drawFrame(ctx, item.img, canvas.width, canvas.height, thickness, radius);
+        }
 
-            // 그리기용 반지름을 계산합니다. 이미지 크기의 절반을 넘지 않도록 제한합니다.
+        // 공통 그리기 로직 (화면 렌더링 & 다운로드용)
+        function drawFrame(context, imageObj, w, h, thickness, rawRadius) {
+            context.clearRect(0, 0, w, h);
+
+            // 반지름 계산 (이미지 크기 초과 방지)
             const maxRadius = Math.min(w, h) / 2;
             let radius = Math.min(rawRadius, maxRadius);
-            radius = Math.max(0, radius); // 음수가 되지 않도록 합니다.
+            radius = Math.max(0, radius);
 
-            // 텍스트 표시 업데이트 (슬라이더의 원본 값을 보여줍니다)
-            widthValue.textContent = `${thickness}px`;
-            radiusValue.textContent = `${rawRadius}px`;
+            // 1. 클리핑 패스 생성 (둥근 사각형)
+            context.save();
+            context.beginPath();
+            context.moveTo(radius, 0);
+            context.lineTo(w - radius, 0);
+            context.quadraticCurveTo(w, 0, w, radius);
+            context.lineTo(w, h - radius);
+            context.quadraticCurveTo(w, h, w - radius, h);
+            context.lineTo(radius, h);
+            context.quadraticCurveTo(0, h, 0, h - radius);
+            context.lineTo(0, radius);
+            context.quadraticCurveTo(0, 0, radius, 0);
+            context.closePath();
 
-            // 캔버스 초기화
-            ctx.clearRect(0, 0, w, h);
+            // 2. 이미지 클리핑 및 그리기
+            context.clip();
+            context.drawImage(imageObj, 0, 0);
+            context.restore();
 
-            // --- 1단계: 이미지를 둥근 사각형으로 클리핑하여 그리기 ---
-            ctx.save();
-            ctx.beginPath();
-            ctx.moveTo(radius, 0);
-            ctx.lineTo(w - radius, 0);
-            ctx.quadraticCurveTo(w, 0, w, radius);
-            ctx.lineTo(w, h - radius);
-            ctx.quadraticCurveTo(w, h, w - radius, h);
-            ctx.lineTo(radius, h);
-            ctx.quadraticCurveTo(0, h, 0, h - radius);
-            ctx.lineTo(0, radius);
-            ctx.quadraticCurveTo(0, 0, radius, 0);
-            ctx.closePath();
-
-            ctx.clip();
-            ctx.drawImage(originalImage, 0, 0);
-            ctx.restore(); // 클리핑 해제
-
-            // --- 2단계: 안쪽 테두리 그리기 ---
+            // 3. 테두리 그리기 (안쪽)
             if (thickness > 0) {
-                ctx.save();
-                ctx.strokeStyle = '#000000'; // 순수한 검은색
-
-                // 테두리 두께의 절반만큼 안쪽으로 들어간 경로를 생성하고, 
-                // 그 경로를 따라 테두리 두께만큼 선을 그립니다.
-                // 이렇게 하면 선의 바깥쪽이 이미지의 외곽선과 정확히 일치하게 됩니다.
+                context.save();
+                context.strokeStyle = '#000000'; // Black
+                
                 const inset = thickness / 2;
                 const innerW = w - 2 * inset;
                 const innerH = h - 2 * inset;
 
-                // 테두리가 너무 두꺼워서 이미지를 모두 덮는 경우
                 if (innerW <= 0 || innerH <= 0) {
-                    // 전체를 검은색 둥근 사각형으로 채웁니다.
-                    ctx.beginPath();
-                    ctx.moveTo(radius, 0);
-                    ctx.lineTo(w - radius, 0);
-                    ctx.quadraticCurveTo(w, 0, w, radius);
-                    ctx.lineTo(w, h - radius);
-                    ctx.quadraticCurveTo(w, h, w - radius, h);
-                    ctx.lineTo(radius, h);
-                    ctx.quadraticCurveTo(0, h, 0, h - radius);
-                    ctx.lineTo(0, radius);
-                    ctx.quadraticCurveTo(0, 0, radius, 0);
-                    ctx.closePath();
-                    ctx.fillStyle = '#000000';
-                    ctx.fill();
+                    // 전체 채우기
+                    context.beginPath();
+                    // ... (위와 동일한 둥근 사각형 경로)
+                    context.moveTo(radius, 0);
+                    context.lineTo(w - radius, 0);
+                    context.quadraticCurveTo(w, 0, w, radius);
+                    context.lineTo(w, h - radius);
+                    context.quadraticCurveTo(w, h, w - radius, h);
+                    context.lineTo(radius, h);
+                    context.quadraticCurveTo(0, h, 0, h - radius);
+                    context.lineTo(0, radius);
+                    context.quadraticCurveTo(0, 0, radius, 0);
+                    context.closePath();
+                    
+                    context.fillStyle = '#000000';
+                    context.fill();
                 } else {
-                    // 안쪽 경로를 그리고 선을 긋습니다.
-                    // 안쪽 경로의 모서리 반지름은 inset 만큼 줄어듭니다.
+                    // 안쪽 테두리 경로 계산
                     let innerRadius = radius - inset;
-                    innerRadius = Math.max(0, innerRadius); // 반지름이 음수가 되지 않도록 함
+                    innerRadius = Math.max(0, innerRadius);
 
                     const x = inset;
                     const y = inset;
                     const right = w - inset;
                     const bottom = h - inset;
 
-                    ctx.beginPath();
-                    ctx.moveTo(x + innerRadius, y);
-                    ctx.lineTo(right - innerRadius, y);
-                    ctx.quadraticCurveTo(right, y, right, y + innerRadius);
-                    ctx.lineTo(right, bottom - innerRadius);
-                    ctx.quadraticCurveTo(right, bottom, right - innerRadius, bottom);
-                    ctx.lineTo(x + innerRadius, bottom);
-                    ctx.quadraticCurveTo(x, bottom, x, bottom - innerRadius);
-                    ctx.lineTo(x, y + innerRadius);
-                    ctx.quadraticCurveTo(x, y, x + innerRadius, y);
-                    ctx.closePath();
+                    context.beginPath();
+                    context.moveTo(x + innerRadius, y);
+                    context.lineTo(right - innerRadius, y);
+                    context.quadraticCurveTo(right, y, right, y + innerRadius);
+                    context.lineTo(right, bottom - innerRadius);
+                    context.quadraticCurveTo(right, bottom, right - innerRadius, bottom);
+                    context.lineTo(x + innerRadius, bottom);
+                    context.quadraticCurveTo(x, bottom, x, bottom - innerRadius);
+                    context.lineTo(x, y + innerRadius);
+                    context.quadraticCurveTo(x, y, x + innerRadius, y);
+                    context.closePath();
 
-                    ctx.lineWidth = thickness;
-                    ctx.stroke();
+                    context.lineWidth = thickness;
+                    context.stroke();
                 }
-                ctx.restore();
+                context.restore();
+            }
+        }
+
+        function downloadSingleImage(idx) {
+            const item = imagesData[idx];
+            // 현재 캔버스 내용을 바로 저장 (미리보기가 해당 이미지일 때)
+            // 만약 미리보기와 다운로드 대상이 다르면 다시 그려야 하지만,
+            // UI상 현재 보고 있는 것을 다운로드하는 것이 자연스러움.
+            // 안전을 위해 다시 그리는 것이 좋으나 간단히 처리.
+            // 하지만 batch 처리를 위해 drawFrame 함수를 분리했으므로 재활용 가능.
+            
+            // 여기서는 단순히 현재 캔버스(이미 보고있는 것)를 다운로드
+            if (idx !== currentIndex) {
+                // 혹시 모를 상황 대비 (UI와 데이터 불일치 방지)
+                alert("다운로드하려는 이미지를 먼저 선택해주세요.");
+                return;
+            }
+
+            try {
+                const dataUrl = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = `framed_${item.name.replace(/\.[^/.]+$/, "")}.png`;
+                link.href = dataUrl;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (err) {
+                console.error(err);
+                alert("다운로드 실패");
             }
         }
     </script>
