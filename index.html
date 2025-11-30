@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>심플 포토 보더</title>
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --surface-color: #ffffff;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+            --accent-color: #000000;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: var(--surface-color);
+            padding: 24px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+            letter-spacing: -0.025em;
+        }
+
+        p.subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed #cbd5e1;
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background-color: #f8fafc;
+            margin-bottom: 24px;
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--accent-color);
+            background-color: #fff;
+        }
+
+        .upload-icon {
+            font-size: 2rem;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .upload-text {
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Controls */
+        .controls {
+            display: none; /* Hidden by default */
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            gap: 16px;
+        }
+
+        .controls.active {
+            display: grid;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        /* Lock Checkbox Styling */
+        .lock-control {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 8px;
+        }
+
+        .lock-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .lock-label input {
+            accent-color: var(--accent-color);
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        /* Range Slider Styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: #d1d5db;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type="range"]:disabled {
+            background: #e5e7eb;
+            cursor: not-allowed;
+        }
+
+        input[type="range"]:disabled::-webkit-slider-thumb {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        /* Canvas Preview */
+        .preview-container {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 24px;
+            background-image: 
+                linear-gradient(45deg, #eee 25%, transparent 25%),
+                linear-gradient(-45deg, #eee 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #eee 75%),
+                linear-gradient(-45deg, transparent 75%, #eee 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            border-radius: 8px;
+            overflow: hidden;
+            padding: 20px;
+            min-height: 200px;
+        }
+
+        .preview-container.active {
+            display: flex;
+        }
+
+        canvas {
+            max-width: 100%;
+            height: auto;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Buttons */
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-download {
+            background-color: var(--accent-color);
+            color: white;
+            display: none;
+        }
+        
+        .btn-download.active {
+            display: block;
+        }
+
+        .btn-reset {
+            background-color: transparent;
+            color: var(--text-secondary);
+            margin-top: 10px;
+            font-size: 0.9rem;
+            display: none;
+        }
+        
+        .btn-reset.active {
+            display: block;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>테두리 만들기</h1>
+            <p class="subtitle">사진에 깔끔한 블랙 테두리를 입혀보세요</p>
+        </header>
+
+        <!-- Upload Zone -->
+        <div class="upload-area" id="dropZone">
+            <span class="upload-icon">📷</span>
+            <div class="upload-text">사진을 클릭하거나 드래그하세요</div>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+
+        <!-- Canvas Preview -->
+        <div class="preview-container" id="previewContainer">
+            <canvas id="canvas"></canvas>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls" id="controls">
+            <!-- Lock Checkbox Added -->
+            <div class="lock-control">
+                <label class="lock-label">
+                    <input type="checkbox" id="lockSettings">
+                    <span>🔒 설정 고정</span>
+                </label>
+            </div>
+
+            <div class="control-group">
+                <div class="label-row">
+                    <label>테두리 두께</label>
+                    <span id="widthValue">5px</span>
+                </div>
+                <input type="range" id="borderWidth" min="0" max="10" value="5">
+            </div>
+
+            <div class="control-group">
+                <div class="label-row">
+                    <label>모서리 둥글기</label>
+                    <span id="radiusValue">0px</span>
+                </div>
+                <input type="range" id="borderRadius" min="0" max="100" value="0">
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <button class="btn btn-download" id="downloadBtn">이미지 다운로드 (PNG)</button>
+        <button class="btn btn-reset" id="resetBtn">다른 사진 선택하기</button>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('dropZone');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        const controls = document.getElementById('controls');
+        const previewContainer = document.getElementById('previewContainer');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        
+        const borderWidthInput = document.getElementById('borderWidth');
+        const borderRadiusInput = document.getElementById('borderRadius');
+        const widthValue = document.getElementById('widthValue');
+        const radiusValue = document.getElementById('radiusValue');
+        const lockSettings = document.getElementById('lockSettings');
+
+        let originalImage = null;
+
+        // --- Event Listeners ---
+        
+        // Lock Settings Logic
+        lockSettings.addEventListener('change', (e) => {
+            const isLocked = e.target.checked;
+            borderWidthInput.disabled = isLocked;
+            borderRadiusInput.disabled = isLocked;
+        });
+
+        // Click to upload
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        // Drag & Drop
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        // File Selection
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // Sliders
+        borderWidthInput.addEventListener('input', updateCanvas);
+        borderRadiusInput.addEventListener('input', updateCanvas);
+
+        // Download (Improved Compatibility)
+        downloadBtn.addEventListener('click', () => {
+            if (!originalImage) return;
+
+            try {
+                // Generate Data URL
+                const dataUrl = canvas.toDataURL('image/png');
+                
+                // Create temporary link
+                const link = document.createElement('a');
+                const timestamp = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 14);
+                link.download = `framed_photo_${timestamp}.png`;
+                link.href = dataUrl;
+
+                // FIX: Append to body to ensure click works in all browsers (Firefox, etc)
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+            } catch (error) {
+                console.error("Download failed:", error);
+                alert("다운로드 중 오류가 발생했습니다. 브라우저 보안 설정이나 이미지를 확인해주세요.");
+            }
+        });
+
+        // Reset
+        resetBtn.addEventListener('click', () => {
+            originalImage = null;
+            fileInput.value = '';
+            
+            dropZone.style.display = 'block';
+            controls.classList.remove('active');
+            previewContainer.classList.remove('active');
+            downloadBtn.classList.remove('active');
+            resetBtn.classList.remove('active');
+        });
+
+        // --- Core Functions ---
+
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('이미지 파일만 업로드해주세요.');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    originalImage = img;
+                    
+                    // Show UI elements
+                    dropZone.style.display = 'none';
+                    controls.classList.add('active');
+                    previewContainer.classList.add('active');
+                    downloadBtn.classList.add('active');
+                    resetBtn.classList.add('active');
+                    
+                    updateCanvas();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function updateCanvas() {
+            if (!originalImage) return;
+
+            const thickness = parseInt(borderWidthInput.value);
+            const radius = parseInt(borderRadiusInput.value);
+
+            // Update text displays
+            widthValue.textContent = `${thickness}px`;
+            radiusValue.textContent = `${radius}px`;
+
+            // Canvas size matches original image resolution
+            canvas.width = originalImage.width;
+            canvas.height = originalImage.height;
+
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Clear
+            ctx.clearRect(0, 0, w, h);
+            ctx.save();
+
+            // Create Rounded Rectangle Path
+            // We use this path for both clipping the image and drawing the border
+            ctx.beginPath();
+            ctx.moveTo(radius, 0);
+            ctx.lineTo(w - radius, 0);
+            ctx.quadraticCurveTo(w, 0, w, radius);
+            ctx.lineTo(w, h - radius);
+            ctx.quadraticCurveTo(w, h, w - radius, h);
+            ctx.lineTo(radius, h);
+            ctx.quadraticCurveTo(0, h, 0, h - radius);
+            ctx.lineTo(0, radius);
+            ctx.quadraticCurveTo(0, 0, radius, 0);
+            ctx.closePath();
+
+            // 1. Clip and Draw Image
+            ctx.clip();
+            ctx.drawImage(originalImage, 0, 0);
+
+            // 2. Draw Border (Inner Stroke Simulation)
+            if (thickness > 0) {
+                // If we just stroke(), half the line is outside the clip.
+                // To make a clean inner border of size X, we set lineWidth to X * 2.
+                // Since the outer half is clipped away, only the inner half remains.
+                ctx.lineWidth = thickness * 2; 
+                ctx.strokeStyle = '#000000'; // Pure Black
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+    </script>
+</body>
+</html>
