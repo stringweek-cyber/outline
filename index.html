@@ -4,26 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>심플 포토 보더 - 일괄 처리</title>
-    <!-- JSZip 라이브러리 제거 (개별 다운로드로 변경됨) -->
+    
     <style>
         :root {
-            --bg-color: #f8f9fa;
+            --bg-color: #f3f4f6;
             --surface-color: #ffffff;
-            --text-primary: #111827;
+            --text-primary: #1f2937;
             --text-secondary: #6b7280;
+            --accent-color: #2563eb;
+            --accent-hover: #1d4ed8;
             --border-color: #e5e7eb;
-            --accent-color: #000000;
-            --active-thumb: #3b82f6;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-primary);
             display: flex;
@@ -35,56 +36,73 @@
 
         .container {
             width: 100%;
-            max-width: 800px; /* 여러 장 미리보기를 위해 폭을 조금 늘림 */
+            max-width: 600px;
             background: var(--surface-color);
             padding: 24px;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            border-radius: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
 
         header {
             text-align: center;
-            margin-bottom: 24px;
+            margin-bottom: 30px;
         }
 
         h1 {
             font-size: 1.5rem;
             font-weight: 800;
             margin-bottom: 8px;
-            letter-spacing: -0.025em;
+            color: #111827;
         }
 
         p.subtitle {
             color: var(--text-secondary);
-            font-size: 0.9rem;
+            font-size: 0.95rem;
         }
 
         /* Upload Area */
         .upload-area {
-            border: 2px dashed #cbd5e1;
-            border-radius: 16px;
+            background-color: #eff6ff;
+            border: 2px dashed #bfdbfe;
+            border-radius: 20px;
             padding: 40px 20px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.2s ease;
-            background-color: #f8fafc;
+            transition: all 0.3s ease;
             margin-bottom: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
-        .upload-area:hover, .upload-area.dragover {
-            border-color: var(--accent-color);
-            background-color: #fff;
+        .upload-area:active {
+            transform: scale(0.98);
+            background-color: #dbeafe;
         }
 
         .upload-icon {
-            font-size: 2rem;
-            margin-bottom: 12px;
-            display: block;
+            font-size: 3rem;
+            margin-bottom: 16px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+
+        .upload-btn-style {
+            background-color: var(--accent-color);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1rem;
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+            margin-top: 10px;
+            pointer-events: none; /* 클릭 이벤트를 부모에게 위임 */
         }
 
         .upload-text {
-            font-weight: 600;
             color: var(--text-secondary);
+            margin-bottom: 8px;
+            font-size: 0.9rem;
         }
 
         input[type="file"] {
@@ -97,29 +115,30 @@
             margin-bottom: 20px;
             overflow-x: auto;
             white-space: nowrap;
-            padding-bottom: 10px;
+            padding: 4px;
+            gap: 10px;
             -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; /* Firefox */
+        }
+        .thumbnails-container::-webkit-scrollbar {
+            display: none; /* Chrome, Safari */
         }
 
         .thumbnails-container.active {
             display: flex;
-            gap: 10px;
         }
 
         .thumb-item {
-            width: 60px;
-            height: 60px;
-            border-radius: 8px;
+            width: 70px;
+            height: 70px;
+            border-radius: 12px;
             object-fit: cover;
             cursor: pointer;
-            border: 2px solid transparent;
-            opacity: 0.6;
+            border: 3px solid transparent;
+            opacity: 0.5;
             transition: all 0.2s;
             flex-shrink: 0;
-        }
-
-        .thumb-item:hover {
-            opacity: 1;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .thumb-item.active {
@@ -128,59 +147,149 @@
             transform: scale(1.05);
         }
 
+        /* Canvas Preview */
+        .preview-wrapper {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .preview-wrapper.active {
+            display: flex;
+        }
+
+        .preview-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: 
+                linear-gradient(45deg, #eee 25%, transparent 25%),
+                linear-gradient(-45deg, #eee 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #eee 75%),
+                linear-gradient(-45deg, transparent 75%, #eee 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            border-radius: 16px;
+            overflow: hidden;
+            padding: 20px;
+            min-height: 250px;
+            position: relative;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 400px;
+            height: auto;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .count-badge {
+            align-self: flex-end;
+            background: rgba(0,0,0,0.05);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
         /* Controls */
         .controls {
             display: none;
-            background: #f3f4f6;
+            background: #f9fafb;
             padding: 20px;
-            border-radius: 16px;
+            border-radius: 20px;
             margin-bottom: 24px;
-            gap: 16px;
+            gap: 20px;
+            border: 1px solid #f3f4f6;
         }
 
         .controls.active {
-            display: grid;
+            display: flex;
+            flex-direction: column;
         }
 
         .control-group {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 10px;
         }
 
         .label-row {
             display: flex;
             justify-content: space-between;
-            font-size: 0.9rem;
+            align-items: center;
+            font-size: 0.95rem;
             font-weight: 600;
+            color: #374151;
+        }
+        
+        .value-badge {
+            background: #e5e7eb;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-family: monospace;
         }
 
-        /* Lock Checkbox Styling */
+        /* Lock Checkbox */
         .lock-control {
             display: flex;
-            justify-content: flex-end;
-            margin-bottom: 8px;
-        }
-
-        .lock-label {
-            display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 6px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            cursor: pointer;
-            user-select: none;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e5e7eb;
         }
 
-        .lock-label input {
-            accent-color: var(--accent-color);
-            width: 16px;
-            height: 16px;
-            cursor: pointer;
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
         }
 
-        /* Range Slider Styling */
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-color);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Range Slider */
         input[type="range"] {
             -webkit-appearance: none;
             width: 100%;
@@ -190,78 +299,27 @@
             outline: none;
         }
 
-        input[type="range"]:disabled {
-            background: #e5e7eb;
-            cursor: not-allowed;
-        }
-
-        input[type="range"]:disabled::-webkit-slider-thumb {
-            background: #9ca3af;
-            cursor: not-allowed;
-            transform: none;
-        }
-
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            background: var(--accent-color);
+            width: 22px;
+            height: 22px;
+            background: white;
+            border: 2px solid var(--accent-color);
             border-radius: 50%;
             cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
             transition: transform 0.1s;
         }
 
-        input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.1);
-        }
-
-        /* Canvas Preview */
-        .preview-container {
-            display: none;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 24px;
-            background-image: 
-                linear-gradient(45deg, #eee 25%, transparent 25%),
-                linear-gradient(-45deg, #eee 25%, transparent 25%),
-                linear-gradient(45deg, transparent 75%, #eee 75%),
-                linear-gradient(-45deg, transparent 75%, #eee 75%);
-            background-size: 20px 20px;
-            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-            border-radius: 8px;
-            overflow: hidden;
-            padding: 20px;
-            min-height: 200px;
-            position: relative;
-        }
-
-        .preview-container.active {
-            display: flex;
-        }
-
-        .preview-label {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            pointer-events: none;
-        }
-
-        canvas {
-            max-width: 100%;
-            height: auto;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        input[type="range"]:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         /* Buttons */
         .btn-group {
             display: none;
-            gap: 10px;
+            gap: 12px;
             flex-direction: column;
         }
         
@@ -271,13 +329,17 @@
 
         .btn {
             width: 100%;
-            padding: 14px;
+            padding: 16px;
             border: none;
-            border-radius: 12px;
+            border-radius: 16px;
             font-size: 1rem;
             font-weight: 700;
             cursor: pointer;
-            transition: transform 0.1s, opacity 0.2s;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
         }
 
         .btn:active {
@@ -287,25 +349,52 @@
         .btn-download-all {
             background-color: var(--accent-color);
             color: white;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
         }
-
-        .btn-download-one {
-            background-color: #4b5563;
-            color: white;
-            font-size: 0.9rem;
+        
+        .btn-download-all:hover {
+            background-color: var(--accent-hover);
         }
 
         .btn-reset {
-            background-color: transparent;
+            background-color: #f3f4f6;
             color: var(--text-secondary);
-            margin-top: 5px;
-            font-size: 0.9rem;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            display: none;
+            width: 100%;
+            height: 6px;
+            background-color: #e5e7eb;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: var(--accent-color);
+            transition: width 0.3s ease;
+        }
+        
+        /* 다운로드 권한 안내 메시지 */
+        .permission-notice {
+            display: none;
+            font-size: 0.85rem;
+            color: #d97706; /* Amber-600 */
+            background: #fffbeb;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            line-height: 1.4;
+            border: 1px solid #fcd34d;
         }
 
         @media (max-width: 480px) {
-            .container {
-                padding: 16px;
-            }
+            .container { padding: 20px; }
+            h1 { font-size: 1.25rem; }
         }
     </style>
 </head>
@@ -314,76 +403,92 @@
     <div class="container">
         <header>
             <h1>일괄 테두리 만들기</h1>
-            <p class="subtitle">여러 장의 사진을 한 번에 편집하세요</p>
+            <p class="subtitle">사진을 선택하면 앨범이 열립니다</p>
         </header>
 
         <!-- Upload Zone -->
         <div class="upload-area" id="dropZone">
-            <span class="upload-icon">📷</span>
-            <div class="upload-text">사진들을 클릭하거나 드래그하세요 (여러 장 가능)</div>
-            <!-- multiple 속성 추가 -->
+            <span class="upload-icon">📸</span>
+            <div class="upload-text">여러 장의 사진을 선택하세요</div>
+            <div class="upload-btn-style">사진 선택하기 (앨범 열기)</div>
             <input type="file" id="fileInput" accept="image/*" multiple>
         </div>
 
-        <!-- Thumbnails List -->
+        <!-- Thumbnails -->
         <div class="thumbnails-container" id="thumbnailList"></div>
 
-        <!-- Canvas Preview -->
-        <div class="preview-container" id="previewContainer">
-            <div class="preview-label" id="previewLabel">미리보기</div>
-            <canvas id="canvas"></canvas>
+        <!-- Preview -->
+        <div class="preview-wrapper" id="previewWrapper">
+            <div class="count-badge" id="countBadge"></div>
+            <div class="preview-container">
+                <canvas id="canvas"></canvas>
+            </div>
         </div>
 
         <!-- Controls -->
         <div class="controls" id="controls">
-            <!-- Lock Checkbox -->
             <div class="lock-control">
-                <label class="lock-label">
+                <span style="font-weight:600; font-size:0.95rem;">🔒 편집 설정 고정하기</span>
+                <label class="toggle-switch">
                     <input type="checkbox" id="lockSettings">
-                    <span>🔒 설정 고정</span>
+                    <span class="slider"></span>
                 </label>
             </div>
 
             <div class="control-group">
                 <div class="label-row">
                     <label>테두리 두께</label>
-                    <span id="widthValue">5px</span>
+                    <span class="value-badge" id="widthValue">5px</span>
                 </div>
-                <input type="range" id="borderWidth" min="0" max="30" value="5">
+                <input type="range" id="borderWidth" min="0" max="50" value="10">
             </div>
 
             <div class="control-group">
                 <div class="label-row">
                     <label>모서리 둥글기</label>
-                    <span id="radiusValue">0px</span>
+                    <span class="value-badge" id="radiusValue">0px</span>
                 </div>
-                <input type="range" id="borderRadius" min="0" max="100" value="0">
+                <input type="range" id="borderRadius" min="0" max="150" value="0">
             </div>
         </div>
 
-        <!-- Action Buttons -->
+        <!-- Actions -->
         <div class="btn-group" id="btnGroup">
-            <button class="btn btn-download-all" id="downloadAllBtn">📦 모든 사진 개별 다운로드</button>
-            <button class="btn btn-download-one" id="downloadOneBtn">현재 사진만 다운로드</button>
-            <button class="btn btn-reset" id="resetBtn">처음으로 (초기화)</button>
+            <div class="permission-notice" id="permissionNotice">
+                ⚠️ 사진이 여러 장일 경우, 브라우저에서<br>
+                <strong>'여러 파일 다운로드'를 허용</strong>해주세요.
+            </div>
+
+            <button class="btn btn-download-all" id="downloadAllBtn">
+                <span>⬇️ 모든 사진 저장 (개별 파일)</span>
+            </button>
+            
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+
+            <button class="btn btn-reset" id="resetBtn">처음으로</button>
         </div>
     </div>
 
     <script>
+        // DOM Elements
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         
         const controls = document.getElementById('controls');
-        const previewContainer = document.getElementById('previewContainer');
+        const previewWrapper = document.getElementById('previewWrapper');
         const thumbnailList = document.getElementById('thumbnailList');
         const btnGroup = document.getElementById('btnGroup');
-        const previewLabel = document.getElementById('previewLabel');
+        const countBadge = document.getElementById('countBadge');
+        const permissionNotice = document.getElementById('permissionNotice');
         
         const downloadAllBtn = document.getElementById('downloadAllBtn');
-        const downloadOneBtn = document.getElementById('downloadOneBtn');
         const resetBtn = document.getElementById('resetBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
         
         const borderWidthInput = document.getElementById('borderWidth');
         const borderRadiusInput = document.getElementById('borderRadius');
@@ -391,35 +496,15 @@
         const radiusValue = document.getElementById('radiusValue');
         const lockSettings = document.getElementById('lockSettings');
 
-        // 상태 관리
-        let imagesData = []; // { name: string, img: ImageObject } 배열
-        let currentIndex = 0; // 현재 미리보기 중인 이미지 인덱스
+        // State
+        let imagesData = [];
+        let currentIndex = 0;
 
         // --- Event Listeners ---
-        
-        lockSettings.addEventListener('change', (e) => {
-            const isLocked = e.target.checked;
-            borderWidthInput.disabled = isLocked;
-            borderRadiusInput.disabled = isLocked;
-        });
 
-        dropZone.addEventListener('click', () => fileInput.click());
-
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
-        });
-
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('dragover');
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            if (e.dataTransfer.files.length) {
-                handleFiles(Array.from(e.dataTransfer.files));
-            }
+        // 1. Upload Click (Opens Album)
+        dropZone.addEventListener('click', () => {
+            fileInput.click();
         });
 
         fileInput.addEventListener('change', (e) => {
@@ -428,87 +513,118 @@
             }
         });
 
-        borderWidthInput.addEventListener('input', updateCurrentPreview);
-        borderRadiusInput.addEventListener('input', updateCurrentPreview);
-
-        // Single Download
-        downloadOneBtn.addEventListener('click', () => {
-            if (imagesData.length === 0) return;
-            downloadSingleImage(currentIndex);
+        // 2. Drag & Drop Support
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.backgroundColor = '#dbeafe';
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.style.backgroundColor = '#eff6ff';
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.backgroundColor = '#eff6ff';
+            if (e.dataTransfer.files.length) {
+                handleFiles(Array.from(e.dataTransfer.files));
+            }
         });
 
-        // Batch Download (Sequential Individual Files)
+        // 3. Control Inputs
+        borderWidthInput.addEventListener('input', updateCurrentPreview);
+        borderRadiusInput.addEventListener('input', updateCurrentPreview);
+        
+        lockSettings.addEventListener('change', (e) => {
+            const isLocked = e.target.checked;
+            borderWidthInput.disabled = isLocked;
+            borderRadiusInput.disabled = isLocked;
+            dropZone.style.opacity = isLocked ? "0.5" : "1"; // 시각적 피드백
+        });
+
+        // 4. Download Logic (Sequential Individual Files - NO ZIP)
         downloadAllBtn.addEventListener('click', async () => {
             if (imagesData.length === 0) return;
-            
-            // confirm(확인창) 제거 - 샌드박스 환경에서 차단될 수 있음
-            // 바로 다운로드 시작
-            
+
+            // UI Update
             downloadAllBtn.disabled = true;
-            const originalBtnText = downloadAllBtn.textContent;
+            permissionNotice.style.display = 'block'; // 알림 표시
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
 
             const thickness = parseInt(borderWidthInput.value);
             const radius = parseInt(borderRadiusInput.value);
-            const total = imagesData.length;
 
             try {
-                // 모든 이미지를 순회하며 개별 다운로드 실행
-                for (let i = 0; i < total; i++) {
-                    // 버튼 텍스트로 진행상황 표시
-                    downloadAllBtn.textContent = `⏳ 다운로드 중... (${i + 1}/${total})`;
-
+                // 모든 이미지를 순회하며 처리 및 다운로드 트리거
+                for (let i = 0; i < imagesData.length; i++) {
+                    // 진행 상황 표시
+                    downloadAllBtn.innerHTML = `<span>⏳ 저장 중... (${i + 1}/${imagesData.length})</span>`;
+                    
                     const item = imagesData[i];
                     
-                    // 임시 캔버스 생성
+                    // 임시 캔버스에 그리기
                     const tempCanvas = document.createElement('canvas');
                     tempCanvas.width = item.img.width;
                     tempCanvas.height = item.img.height;
                     const tempCtx = tempCanvas.getContext('2d');
                     
-                    // 테두리 그리기
                     drawFrame(tempCtx, item.img, tempCanvas.width, tempCanvas.height, thickness, radius);
                     
-                    // 다운로드 링크 생성 및 클릭 트리거
+                    // DataURL 생성
                     const dataUrl = tempCanvas.toDataURL('image/png');
+                    
+                    // 다운로드 링크 생성 및 클릭
                     const link = document.createElement('a');
-                    
-                    // 파일명 정리 (확장자 중복 방지)
-                    let baseName = item.name.replace(/\.[^/.]+$/, ""); // 확장자 제거
-                    let fileName = `framed_${baseName}.png`;
-                    
-                    link.download = fileName;
+                    let baseName = item.name.substring(0, item.name.lastIndexOf('.')) || item.name;
+                    link.download = `framed_${baseName}.png`;
                     link.href = dataUrl;
+                    
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
 
-                    // 브라우저가 다운로드를 누락하지 않도록 약간의 간격을 둠 (0.5초)
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    // 진행률 업데이트
+                    const percent = Math.round(((i + 1) / imagesData.length) * 100);
+                    progressBar.style.width = `${percent}%`;
+
+                    // *** 중요 ***
+                    // 브라우저가 다운로드 요청을 너무 빠르게 보내면 차단하거나 누락할 수 있습니다.
+                    // 따라서 각 다운로드 사이에 인위적인 지연(딜레이)을 줍니다.
+                    // 아이폰/사파리의 경우 이 딜레이가 있어도 팝업 허용이 필요할 수 있습니다.
+                    await new Promise(resolve => setTimeout(resolve, 800)); // 0.8초 대기
                 }
+
+                // 완료 표시
+                downloadAllBtn.innerHTML = `<span>✅ 저장 완료!</span>`;
+                setTimeout(() => {
+                    downloadAllBtn.disabled = false;
+                    downloadAllBtn.innerHTML = `<span>⬇️ 모든 사진 저장 (개별 파일)</span>`;
+                    progressContainer.style.display = 'none';
+                    permissionNotice.style.display = 'none';
+                }, 3000);
+
             } catch (err) {
                 console.error(err);
-                // alert 대신 버튼 텍스트로 에러 표시
-                downloadAllBtn.textContent = "❌ 오류 발생 (콘솔 확인)";
-                await new Promise(resolve => setTimeout(resolve, 2000));
-            } finally {
-                downloadAllBtn.textContent = originalBtnText; // "📦 모든 사진 개별 다운로드"
+                alert("저장 중 오류가 발생했습니다. 브라우저의 팝업 차단을 확인해주세요.");
                 downloadAllBtn.disabled = false;
+                downloadAllBtn.innerHTML = `<span>⬇️ 모든 사진 저장 (개별 파일)</span>`;
             }
         });
 
-        resetBtn.addEventListener('click', resetAll);
+        resetBtn.addEventListener('click', () => {
+            if(confirm('모든 작업을 초기화하시겠습니까?')) {
+                resetAll();
+            }
+        });
 
-        // --- Functions ---
+        // --- Core Functions ---
 
         async function handleFiles(files) {
-            // 이미지 파일만 필터링
             const imageFiles = files.filter(f => f.type.startsWith('image/'));
-            if (imageFiles.length === 0) {
-                alert('이미지 파일만 선택해주세요.');
-                return;
-            }
+            if (imageFiles.length === 0) return alert('이미지 파일만 선택해주세요.');
 
-            // 파일 로딩
+            // 로딩 표시
+            dropZone.innerHTML = '<div class="upload-text">사진을 불러오는 중...</div>';
+
             const promises = imageFiles.map(file => {
                 return new Promise((resolve) => {
                     const reader = new FileReader();
@@ -521,13 +637,9 @@
                 });
             });
 
-            const loadedImages = await Promise.all(promises);
-            
-            // 기존 데이터에 추가하거나 새로 시작
-            // 여기서는 새로 시작하는 방식 (기존 목록 덮어쓰기)
-            imagesData = loadedImages;
+            imagesData = await Promise.all(promises);
             currentIndex = 0;
-
+            
             if (imagesData.length > 0) {
                 showUI();
                 renderThumbnails();
@@ -538,22 +650,13 @@
         function showUI() {
             dropZone.style.display = 'none';
             controls.classList.add('active');
-            previewContainer.classList.add('active');
+            previewWrapper.classList.add('active');
             thumbnailList.classList.add('active');
             btnGroup.classList.add('active');
         }
 
         function resetAll() {
-            imagesData = [];
-            currentIndex = 0;
-            fileInput.value = '';
-            
-            dropZone.style.display = 'block';
-            controls.classList.remove('active');
-            previewContainer.classList.remove('active');
-            thumbnailList.classList.remove('active');
-            btnGroup.classList.remove('active');
-            thumbnailList.innerHTML = '';
+            location.reload(); // 가장 깔끔한 초기화
         }
 
         function renderThumbnails() {
@@ -565,7 +668,10 @@
                 thumb.onclick = () => {
                     currentIndex = idx;
                     updateCurrentPreview();
-                    renderThumbnails(); // 하이라이트 갱신
+                    // 하이라이트 갱신
+                    document.querySelectorAll('.thumb-item').forEach((el, i) => {
+                        el.classList.toggle('active', i === idx);
+                    });
                 };
                 thumbnailList.appendChild(thumb);
             });
@@ -575,132 +681,62 @@
             if (imagesData.length === 0) return;
             const item = imagesData[currentIndex];
             
-            // 레이블 업데이트
-            previewLabel.textContent = `미리보기: ${item.name} (${currentIndex + 1}/${imagesData.length})`;
+            countBadge.textContent = `${currentIndex + 1} / ${imagesData.length}`;
             widthValue.textContent = `${borderWidthInput.value}px`;
             radiusValue.textContent = `${borderRadiusInput.value}px`;
 
             const thickness = parseInt(borderWidthInput.value);
             const radius = parseInt(borderRadiusInput.value);
 
-            // 캔버스 크기 조정
+            // 캔버스 크기 맞춤
             canvas.width = item.img.width;
             canvas.height = item.img.height;
 
-            // 그리기 함수 호출
             drawFrame(ctx, item.img, canvas.width, canvas.height, thickness, radius);
         }
 
-        // 공통 그리기 로직 (화면 렌더링 & 다운로드용)
+        // 실제 그리기 로직 (테두리 + 라운딩)
         function drawFrame(context, imageObj, w, h, thickness, rawRadius) {
             context.clearRect(0, 0, w, h);
-
-            // 반지름 계산 (이미지 크기 초과 방지)
+            
+            // 반지름 보정 (이미지 크기의 절반을 넘지 않도록)
             const maxRadius = Math.min(w, h) / 2;
             let radius = Math.min(rawRadius, maxRadius);
             radius = Math.max(0, radius);
 
-            // 1. 클리핑 패스 생성 (둥근 사각형)
+            // 1. 이미지를 둥근 사각형으로 클리핑하여 그리기
             context.save();
-            context.beginPath();
-            context.moveTo(radius, 0);
-            context.lineTo(w - radius, 0);
-            context.quadraticCurveTo(w, 0, w, radius);
-            context.lineTo(w, h - radius);
-            context.quadraticCurveTo(w, h, w - radius, h);
-            context.lineTo(radius, h);
-            context.quadraticCurveTo(0, h, 0, h - radius);
-            context.lineTo(0, radius);
-            context.quadraticCurveTo(0, 0, radius, 0);
-            context.closePath();
-
-            // 2. 이미지 클리핑 및 그리기
+            drawRoundedRectPath(context, w, h, radius);
             context.clip();
-            context.drawImage(imageObj, 0, 0);
+            context.drawImage(imageObj, 0, 0, w, h);
             context.restore();
 
-            // 3. 테두리 그리기 (안쪽)
+            // 2. 테두리 그리기
             if (thickness > 0) {
                 context.save();
-                context.strokeStyle = '#000000'; // Black
+                context.strokeStyle = "#000000";
+                context.lineWidth = thickness * 2; // 클리핑 때문에 절반만 보이므로 2배 두께
+                context.lineJoin = "round";
                 
-                const inset = thickness / 2;
-                const innerW = w - 2 * inset;
-                const innerH = h - 2 * inset;
-
-                if (innerW <= 0 || innerH <= 0) {
-                    // 전체 채우기
-                    context.beginPath();
-                    // ... (위와 동일한 둥근 사각형 경로)
-                    context.moveTo(radius, 0);
-                    context.lineTo(w - radius, 0);
-                    context.quadraticCurveTo(w, 0, w, radius);
-                    context.lineTo(w, h - radius);
-                    context.quadraticCurveTo(w, h, w - radius, h);
-                    context.lineTo(radius, h);
-                    context.quadraticCurveTo(0, h, 0, h - radius);
-                    context.lineTo(0, radius);
-                    context.quadraticCurveTo(0, 0, radius, 0);
-                    context.closePath();
-                    
-                    context.fillStyle = '#000000';
-                    context.fill();
-                } else {
-                    // 안쪽 테두리 경로 계산
-                    let innerRadius = radius - inset;
-                    innerRadius = Math.max(0, innerRadius);
-
-                    const x = inset;
-                    const y = inset;
-                    const right = w - inset;
-                    const bottom = h - inset;
-
-                    context.beginPath();
-                    context.moveTo(x + innerRadius, y);
-                    context.lineTo(right - innerRadius, y);
-                    context.quadraticCurveTo(right, y, right, y + innerRadius);
-                    context.lineTo(right, bottom - innerRadius);
-                    context.quadraticCurveTo(right, bottom, right - innerRadius, bottom);
-                    context.lineTo(x + innerRadius, bottom);
-                    context.quadraticCurveTo(x, bottom, x, bottom - innerRadius);
-                    context.lineTo(x, y + innerRadius);
-                    context.quadraticCurveTo(x, y, x + innerRadius, y);
-                    context.closePath();
-
-                    context.lineWidth = thickness;
-                    context.stroke();
-                }
+                drawRoundedRectPath(context, w, h, radius);
+                context.stroke();
+                
                 context.restore();
             }
         }
 
-        function downloadSingleImage(idx) {
-            const item = imagesData[idx];
-            // 현재 캔버스 내용을 바로 저장 (미리보기가 해당 이미지일 때)
-            // 만약 미리보기와 다운로드 대상이 다르면 다시 그려야 하지만,
-            // UI상 현재 보고 있는 것을 다운로드하는 것이 자연스러움.
-            // 안전을 위해 다시 그리는 것이 좋으나 간단히 처리.
-            // 하지만 batch 처리를 위해 drawFrame 함수를 분리했으므로 재활용 가능.
-            
-            // 여기서는 단순히 현재 캔버스(이미 보고있는 것)를 다운로드
-            if (idx !== currentIndex) {
-                // 혹시 모를 상황 대비 (UI와 데이터 불일치 방지)
-                alert("다운로드하려는 이미지를 먼저 선택해주세요.");
-                return;
-            }
-
-            try {
-                const dataUrl = canvas.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.download = `framed_${item.name.replace(/\.[^/.]+$/, "")}.png`;
-                link.href = dataUrl;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            } catch (err) {
-                console.error(err);
-                alert("다운로드 실패");
-            }
+        function drawRoundedRectPath(ctx, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(r, 0);
+            ctx.lineTo(w - r, 0);
+            ctx.quadraticCurveTo(w, 0, w, r);
+            ctx.lineTo(w, h - r);
+            ctx.quadraticCurveTo(w, h, w - r, h);
+            ctx.lineTo(r, h);
+            ctx.quadraticCurveTo(0, h, 0, h - r);
+            ctx.lineTo(0, r);
+            ctx.quadraticCurveTo(0, 0, r, 0);
+            ctx.closePath();
         }
     </script>
 </body>
