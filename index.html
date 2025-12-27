@@ -61,8 +61,9 @@
             font-size: 0.9rem;
         }
 
-        /* Upload Area */
+        /* Upload Area - Label 방식 (모바일 호환성 최적화) */
         .upload-area {
+            display: block; /* label은 인라인이므로 블록으로 변경 */
             background-color: #eff6ff;
             border: 2px dashed #bfdbfe;
             border-radius: 16px;
@@ -71,32 +72,51 @@
             cursor: pointer;
             transition: background-color 0.2s;
             margin-bottom: 24px;
+            position: relative;
         }
 
         .upload-area:active {
             background-color: #dbeafe;
         }
 
+        .upload-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .upload-text {
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+        }
+
         .upload-btn-style {
             background-color: var(--accent-color);
             color: white;
-            padding: 12px 20px;
+            padding: 12px 24px;
             border-radius: 9999px;
             font-weight: 600;
             font-size: 0.95rem;
             display: inline-block;
             box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
-            margin-top: 12px;
-            pointer-events: none; /* 클릭 통과 */
         }
 
+        /* 실제 input은 숨김 */
         input[type="file"] {
-            display: none;
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
         }
 
         /* Settings Area */
         .settings-area {
-            display: none; /* 파일 업로드 전에는 숨김 */
+            display: none;
             background: #f3f4f6;
             padding: 16px;
             border-radius: 16px;
@@ -160,9 +180,14 @@
 
         /* Image List */
         .image-list {
-            display: flex;
+            display: none; /* 초기에는 숨김 */
             flex-direction: column;
             gap: 12px;
+            width: 100%;
+        }
+        
+        .image-list.active {
+            display: flex;
         }
 
         .image-item {
@@ -188,6 +213,9 @@
         .item-info {
             flex-grow: 1;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         .item-name {
@@ -200,23 +228,28 @@
             margin-bottom: 4px;
         }
 
-        .item-meta {
+        .item-status {
             font-size: 0.75rem;
             color: var(--text-secondary);
         }
 
+        /* 저장 버튼 */
         .save-btn {
             background-color: var(--save-btn-bg);
             color: white;
             border: none;
             border-radius: 10px;
-            padding: 10px 16px;
+            padding: 0 16px;
+            height: 40px;
             font-weight: 600;
             font-size: 0.9rem;
             cursor: pointer;
             flex-shrink: 0;
             transition: background-color 0.2s;
             min-width: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .save-btn:active {
@@ -229,6 +262,7 @@
             cursor: default;
         }
 
+        /* 초기화 버튼 */
         .reset-btn {
             display: none;
             width: 100%;
@@ -240,6 +274,7 @@
             border-radius: 12px;
             font-weight: 600;
             font-size: 1rem;
+            cursor: pointer;
         }
         
         .reset-btn.active {
@@ -257,25 +292,26 @@
     <div class="container">
         <header>
             <h1>간편 테두리</h1>
-            <p class="subtitle">1. 사진 선택 &rarr; 2. 설정 &rarr; 3. 저장</p>
+            <p class="subtitle">한번에 여러 장 선택 &rarr; 리스트에서 저장</p>
         </header>
 
-        <!-- 1. Upload -->
-        <div class="upload-area" id="dropZone">
-            <div style="font-size: 2rem; margin-bottom: 8px;">📷</div>
+        <!-- 1. Upload Area (Label로 감싸서 터치 인식 개선) -->
+        <label class="upload-area" id="uploadLabel">
+            <span class="upload-icon">📷</span>
             <div class="upload-text">사진을 여러 장 선택하세요</div>
             <div class="upload-btn-style">앨범 열기</div>
+            <!-- multiple 속성 필수 -->
             <input type="file" id="fileInput" accept="image/*" multiple>
-        </div>
+        </label>
 
-        <!-- 2. Settings (Hidden initially) -->
+        <!-- 2. Settings (사진 선택 후 표시) -->
         <div class="settings-area" id="settingsArea">
             <div class="control-group">
                 <div class="label-row">
                     <label>테두리 두께</label>
                     <span id="widthDisplay">5px</span>
                 </div>
-                <!-- 기본값 5px 설정 -->
+                <!-- 기본값 5px -->
                 <input type="range" id="borderWidth" min="0" max="50" value="5">
             </div>
 
@@ -287,24 +323,22 @@
                 <input type="range" id="borderRadius" min="0" max="150" value="0">
             </div>
 
-            <!-- Mini Preview -->
             <div class="preview-mini">
                 <div style="font-size:0.8rem; color:#6b7280; margin-bottom:6px;">▼ 설정 미리보기 (첫 번째 사진)</div>
                 <canvas id="previewCanvas"></canvas>
             </div>
         </div>
 
-        <!-- 3. List -->
-        <div class="image-list" id="imageList">
-            <!-- 자바스크립트로 리스트가 여기에 추가됩니다 -->
-        </div>
+        <!-- 3. Image List (개별 저장 버튼) -->
+        <div class="image-list" id="imageList"></div>
 
         <button class="reset-btn" id="resetBtn">처음으로 (초기화)</button>
     </div>
 
     <script>
+        // DOM 요소 연결
         const fileInput = document.getElementById('fileInput');
-        const dropZone = document.getElementById('dropZone');
+        const uploadLabel = document.getElementById('uploadLabel');
         const settingsArea = document.getElementById('settingsArea');
         const imageList = document.getElementById('imageList');
         const resetBtn = document.getElementById('resetBtn');
@@ -317,18 +351,23 @@
         const previewCanvas = document.getElementById('previewCanvas');
         const previewCtx = previewCanvas.getContext('2d');
 
-        let imagesData = []; // 로드된 이미지 데이터 저장소
+        let imagesData = []; // 이미지 데이터 저장 배열
 
-        // --- 이벤트 리스너 ---
-
-        dropZone.addEventListener('click', () => fileInput.click());
-
+        // --- 이벤트: 파일 선택 ---
         fileInput.addEventListener('change', async (e) => {
             if (e.target.files.length === 0) return;
+            
+            // 로딩 중 표시
+            const btnStyle = uploadLabel.querySelector('.upload-btn-style');
+            const originalText = btnStyle.textContent;
+            btnStyle.textContent = "불러오는 중...";
+            
             await loadFiles(Array.from(e.target.files));
+            
+            btnStyle.textContent = originalText;
         });
 
-        // 설정 변경 시 미리보기 업데이트
+        // --- 이벤트: 슬라이더 조절 ---
         borderWidth.addEventListener('input', () => {
             widthDisplay.textContent = `${borderWidth.value}px`;
             updatePreview();
@@ -339,21 +378,28 @@
             updatePreview();
         });
 
+        // --- 이벤트: 초기화 ---
         resetBtn.addEventListener('click', () => {
-            if (confirm("초기화 하시겠습니까?")) location.reload();
+            if (confirm("모든 작업을 초기화 하시겠습니까?")) {
+                location.reload();
+            }
         });
 
-        // --- 기능 함수 ---
-
+        // --- 함수: 파일 불러오기 ---
         async function loadFiles(files) {
             const imageFiles = files.filter(f => f.type.startsWith('image/'));
-            if (imageFiles.length === 0) return alert('이미지 파일만 선택해주세요.');
+            if (imageFiles.length === 0) {
+                alert('이미지 파일만 선택해주세요.');
+                return;
+            }
 
-            dropZone.style.display = 'none'; // 업로드 영역 숨김
-            settingsArea.classList.add('active'); // 설정 영역 표시
-            resetBtn.classList.add('active'); // 초기화 버튼 표시
+            // UI 변경: 업로드 영역 숨기고 설정/리스트 표시
+            uploadLabel.style.display = 'none';
+            settingsArea.classList.add('active');
+            imageList.classList.add('active');
+            resetBtn.classList.add('active');
 
-            // 파일 읽기
+            // 파일 읽기 (Promise.all로 병렬 처리)
             const promises = imageFiles.map(file => {
                 return new Promise((resolve) => {
                     const reader = new FileReader();
@@ -366,16 +412,24 @@
                 });
             });
 
-            imagesData = await Promise.all(promises);
+            // 새로운 이미지들을 기존 배열에 추가 (append)
+            // 사용자 요청: "여러 장 선택" -> "리스트 뜸"
+            // 추가 선택을 원할 경우를 위해 덮어쓰지 않고 추가합니다.
+            const newImages = await Promise.all(promises);
+            imagesData = [...imagesData, ...newImages];
             
-            // UI 렌더링
+            // 리스트 렌더링
             renderList();
-            updatePreview(); // 첫 번째 사진으로 미리보기
+            
+            // 미리보기 업데이트 (첫 번째 사진 기준)
+            if (imagesData.length > 0) {
+                updatePreview();
+            }
         }
 
-        // 리스트 생성
+        // --- 함수: 리스트 렌더링 ---
         function renderList() {
-            imageList.innerHTML = ''; // 초기화
+            imageList.innerHTML = ''; // 기존 리스트 초기화 후 다시 그리기
 
             imagesData.forEach((item, index) => {
                 const div = document.createElement('div');
@@ -386,27 +440,27 @@
                 thumb.src = item.img.src;
                 thumb.className = 'item-thumb';
 
-                // 2. 정보
+                // 2. 파일 정보
                 const info = document.createElement('div');
                 info.className = 'item-info';
                 
                 const name = document.createElement('div');
                 name.className = 'item-name';
                 name.textContent = item.name;
-
-                const meta = document.createElement('div');
-                meta.className = 'item-meta';
-                meta.textContent = `${item.img.width} x ${item.img.height}`;
+                
+                const status = document.createElement('div');
+                status.className = 'item-status';
+                status.textContent = '저장 대기';
 
                 info.appendChild(name);
-                info.appendChild(meta);
+                info.appendChild(status);
 
-                // 3. 저장 버튼
+                // 3. 저장 버튼 (각각 존재)
                 const btn = document.createElement('button');
                 btn.className = 'save-btn';
                 btn.textContent = '저장';
-                // 버튼 클릭 시 현재 설정값으로 저장 실행
-                btn.onclick = () => saveSingleImage(index, btn);
+                // 클릭 시 해당 이미지 저장 함수 실행
+                btn.onclick = () => saveSingleImage(index, btn, status);
 
                 div.appendChild(thumb);
                 div.appendChild(info);
@@ -416,26 +470,26 @@
             });
         }
 
-        // 미리보기 (첫 번째 사진만)
+        // --- 함수: 미리보기 그리기 ---
         function updatePreview() {
             if (imagesData.length === 0) return;
             
-            const item = imagesData[0];
+            const item = imagesData[0]; // 첫 번째 사진 사용
             const thickness = parseInt(borderWidth.value);
             const radius = parseInt(borderRadius.value);
 
+            // 캔버스 크기 맞춤
             previewCanvas.width = item.img.width;
             previewCanvas.height = item.img.height;
             
             drawFrame(previewCtx, item.img, previewCanvas.width, previewCanvas.height, thickness, radius);
         }
 
-        // 개별 이미지 저장 로직
-        async function saveSingleImage(index, btnElement) {
-            // 중복 클릭 방지
+        // --- 함수: 개별 저장 (핵심 로직) ---
+        async function saveSingleImage(index, btnElement, statusElement) {
             if (btnElement.disabled) return;
             
-            btnElement.textContent = '처리중..';
+            btnElement.textContent = '...';
             btnElement.disabled = true;
 
             try {
@@ -443,35 +497,38 @@
                 const thickness = parseInt(borderWidth.value);
                 const radius = parseInt(borderRadius.value);
 
-                // 1. 임시 캔버스 생성 및 그리기
+                // 1. 임시 캔버스 생성
                 const tempCanvas = document.createElement('canvas');
                 tempCanvas.width = item.img.width;
                 tempCanvas.height = item.img.height;
                 const tempCtx = tempCanvas.getContext('2d');
 
+                // 2. 테두리 그리기
                 drawFrame(tempCtx, item.img, tempCanvas.width, tempCanvas.height, thickness, radius);
 
-                // 2. Blob 변환
+                // 3. Blob으로 변환 (메모리 효율적)
                 const blob = await new Promise(resolve => tempCanvas.toBlob(resolve, 'image/png'));
                 const url = URL.createObjectURL(blob);
 
-                // 3. 다운로드 링크 생성 및 클릭 (팝업 없이 바로 다운로드)
+                // 4. 다운로드 링크 생성 및 클릭
                 const link = document.createElement('a');
-                // 확장자 처리
+                // 확장자 제거 후 _framed 붙이기
                 let fileName = item.name.replace(/\.[^/.]+$/, "");
                 link.download = `framed_${fileName}.png`;
                 link.href = url;
                 document.body.appendChild(link);
-                link.click(); // 즉시 실행
+                link.click();
                 document.body.removeChild(link);
 
-                // 4. 메모리 해제
+                // 5. 메모리 해제
                 setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-                // 5. 버튼 상태 업데이트 (완료 표시)
-                btnElement.textContent = '완료 ✅';
+                // 6. 버튼 상태 변경
+                btnElement.textContent = '완료';
                 btnElement.classList.add('done');
-                // 버튼을 다시 활성화하지 않고 '완료' 상태로 둠 (원하면 다시 누르게 로직 변경 가능)
+                statusElement.textContent = '저장됨';
+                
+                // 2초 뒤 버튼 다시 활성화 (원하면 다시 다운로드 가능)
                 setTimeout(() => {
                     btnElement.disabled = false;
                     btnElement.textContent = '다시 저장';
@@ -481,31 +538,32 @@
             } catch (err) {
                 console.error(err);
                 btnElement.textContent = '오류';
-                alert('저장 중 문제가 발생했습니다.');
+                alert('저장에 실패했습니다.');
                 btnElement.disabled = false;
             }
         }
 
-        // --- 그리기 핵심 로직 (이전과 동일) ---
+        // --- 함수: 그리기 (공통) ---
         function drawFrame(ctx, img, w, h, thickness, rawRadius) {
             ctx.clearRect(0, 0, w, h);
             
+            // 반지름이 너무 크면 이미지 깨짐 방지
             const maxRadius = Math.min(w, h) / 2;
             let radius = Math.min(rawRadius, maxRadius);
             radius = Math.max(0, radius);
 
-            // 이미지 클리핑 (모서리 둥글게)
+            // 1. 이미지를 둥근 사각형으로 자르기
             ctx.save();
             drawRoundedRect(ctx, w, h, radius);
             ctx.clip();
             ctx.drawImage(img, 0, 0, w, h);
             ctx.restore();
 
-            // 테두리 그리기
+            // 2. 테두리 그리기
             if (thickness > 0) {
                 ctx.save();
                 ctx.strokeStyle = "#000000"; // 검은색 테두리
-                ctx.lineWidth = thickness * 2; // 클리핑 고려하여 두 배 두께
+                ctx.lineWidth = thickness * 2; // 클리핑 되므로 두께를 2배로 설정
                 ctx.lineJoin = "round";
                 drawRoundedRect(ctx, w, h, radius);
                 ctx.stroke();
