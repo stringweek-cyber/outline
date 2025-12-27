@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>심플 포토 보더 - 일괄 처리</title>
+    <title>심플 포토 보더 - 리스트 저장</title>
     
     <style>
         :root {
@@ -13,6 +13,7 @@
             --text-secondary: #6b7280;
             --accent-color: #2563eb;
             --accent-hover: #1d4ed8;
+            --save-btn-color: #059669; /* Green for individual save */
             --border-color: #e5e7eb;
         }
 
@@ -40,12 +41,12 @@
             background: var(--surface-color);
             padding: 24px;
             border-radius: 24px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 24px;
         }
 
         h1 {
@@ -84,7 +85,6 @@
         .upload-icon {
             font-size: 3rem;
             margin-bottom: 16px;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
         }
 
         .upload-btn-style {
@@ -96,7 +96,7 @@
             font-size: 1rem;
             box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
             margin-top: 10px;
-            pointer-events: none; /* 클릭 이벤트를 부모에게 위임 */
+            pointer-events: none;
         }
 
         .upload-text {
@@ -109,54 +109,14 @@
             display: none;
         }
 
-        /* Thumbnails List */
-        .thumbnails-container {
+        /* Preview Area */
+        .preview-section {
             display: none;
-            margin-bottom: 20px;
-            overflow-x: auto;
-            white-space: nowrap;
-            padding: 4px;
-            gap: 10px;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none; /* Firefox */
-        }
-        .thumbnails-container::-webkit-scrollbar {
-            display: none; /* Chrome, Safari */
-        }
-
-        .thumbnails-container.active {
-            display: flex;
-        }
-
-        .thumb-item {
-            width: 70px;
-            height: 70px;
-            border-radius: 12px;
-            object-fit: cover;
-            cursor: pointer;
-            border: 3px solid transparent;
-            opacity: 0.5;
-            transition: all 0.2s;
-            flex-shrink: 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .thumb-item.active {
-            border-color: var(--accent-color);
-            opacity: 1;
-            transform: scale(1.05);
-        }
-
-        /* Canvas Preview */
-        .preview-wrapper {
-            display: none;
-            flex-direction: column;
-            gap: 10px;
             margin-bottom: 24px;
         }
 
-        .preview-wrapper.active {
-            display: flex;
+        .preview-section.active {
+            display: block;
         }
 
         .preview-container {
@@ -170,126 +130,55 @@
                 linear-gradient(45deg, transparent 75%, #eee 75%),
                 linear-gradient(-45deg, transparent 75%, #eee 75%);
             background-size: 20px 20px;
-            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
             border-radius: 16px;
             overflow: hidden;
             padding: 20px;
-            min-height: 250px;
-            position: relative;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+            min-height: 200px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border-color);
         }
 
         canvas {
             max-width: 100%;
-            max-height: 400px;
+            max-height: 350px;
             height: auto;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         }
 
-        .count-badge {
-            align-self: flex-end;
-            background: rgba(0,0,0,0.05);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-
         /* Controls */
         .controls {
-            display: none;
             background: #f9fafb;
             padding: 20px;
             border-radius: 20px;
-            margin-bottom: 24px;
-            gap: 20px;
             border: 1px solid #f3f4f6;
-        }
-
-        .controls.active {
-            display: flex;
-            flex-direction: column;
+            margin-bottom: 24px;
         }
 
         .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .control-group:last-child {
+            margin-bottom: 0;
         }
 
         .label-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 0.95rem;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
             font-weight: 600;
             color: #374151;
         }
-        
+
         .value-badge {
             background: #e5e7eb;
             padding: 2px 8px;
             border-radius: 6px;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-family: monospace;
         }
 
-        /* Lock Checkbox */
-        .lock-control {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .toggle-switch {
-            position: relative;
-            display: inline-block;
-            width: 44px;
-            height: 24px;
-        }
-
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 34px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-
-        input:checked + .slider {
-            background-color: var(--accent-color);
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(20px);
-        }
-
-        /* Range Slider */
         input[type="range"] {
             -webkit-appearance: none;
             width: 100%;
@@ -301,99 +190,126 @@
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 22px;
-            height: 22px;
+            width: 20px;
+            height: 20px;
             background: white;
             border: 2px solid var(--accent-color);
             border-radius: 50%;
             cursor: pointer;
             box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        /* Download List */
+        .download-list-section {
+            display: none;
+            margin-top: 20px;
+            border-top: 2px solid #f3f4f6;
+            padding-top: 20px;
+        }
+
+        .download-list-section.active {
+            display: block;
+        }
+
+        .list-header {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #111827;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .download-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .download-item {
+            display: flex;
+            align-items: center;
+            background: white;
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
             transition: transform 0.1s;
         }
 
-        input[type="range"]:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        .download-item:active {
+            transform: scale(0.99);
         }
 
-        /* Buttons */
-        .btn-group {
-            display: none;
-            gap: 12px;
-            flex-direction: column;
-        }
-        
-        .btn-group.active {
-            display: flex;
-        }
-
-        .btn {
-            width: 100%;
-            padding: 16px;
-            border: none;
-            border-radius: 16px;
-            font-size: 1rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
+        .item-thumb {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            object-fit: cover;
+            margin-right: 12px;
+            border: 1px solid #e5e7eb;
+            flex-shrink: 0;
         }
 
-        .btn:active {
-            transform: scale(0.98);
+        .item-info {
+            flex-grow: 1;
+            min-width: 0; /* text overflow fix */
+            margin-right: 10px;
         }
 
-        .btn-download-all {
-            background-color: var(--accent-color);
-            color: white;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-        }
-        
-        .btn-download-all:hover {
-            background-color: var(--accent-hover);
+        .item-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #374151;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 2px;
         }
 
-        .btn-reset {
-            background-color: #f3f4f6;
+        .item-status {
+            font-size: 0.75rem;
             color: var(--text-secondary);
         }
 
-        /* Progress Bar */
-        .progress-container {
-            display: none;
-            width: 100%;
-            height: 6px;
-            background-color: #e5e7eb;
-            border-radius: 3px;
-            overflow: hidden;
-            margin-top: 10px;
-        }
-        
-        .progress-bar {
-            width: 0%;
-            height: 100%;
-            background-color: var(--accent-color);
-            transition: width 0.3s ease;
-        }
-        
-        /* 다운로드 권한 안내 메시지 */
-        .permission-notice {
-            display: none;
-            font-size: 0.85rem;
-            color: #d97706; /* Amber-600 */
-            background: #fffbeb;
-            padding: 10px;
+        .item-btn {
+            background-color: var(--save-btn-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
             border-radius: 8px;
-            text-align: center;
-            line-height: 1.4;
-            border: 1px solid #fcd34d;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .item-btn:active {
+            background-color: #047857;
+        }
+
+        .item-btn.downloaded {
+            background-color: #9ca3af;
+        }
+
+        .reset-btn {
+            width: 100%;
+            margin-top: 24px;
+            padding: 12px;
+            background: #f3f4f6;
+            border: none;
+            border-radius: 12px;
+            color: #4b5563;
+            font-weight: 600;
+            cursor: pointer;
         }
 
         @media (max-width: 480px) {
-            .container { padding: 20px; }
+            .container { padding: 16px; }
             h1 { font-size: 1.25rem; }
         }
     </style>
@@ -403,117 +319,88 @@
     <div class="container">
         <header>
             <h1>일괄 테두리 만들기</h1>
-            <p class="subtitle">사진을 선택하면 앨범이 열립니다</p>
+            <p class="subtitle">사진 선택 후 아래 리스트에서 저장하세요</p>
         </header>
 
         <!-- Upload Zone -->
         <div class="upload-area" id="dropZone">
             <span class="upload-icon">📸</span>
-            <div class="upload-text">여러 장의 사진을 선택하세요</div>
+            <div class="upload-text">사진을 여러 장 선택하세요</div>
             <div class="upload-btn-style">사진 선택하기 (앨범 열기)</div>
             <input type="file" id="fileInput" accept="image/*" multiple>
         </div>
 
-        <!-- Thumbnails -->
-        <div class="thumbnails-container" id="thumbnailList"></div>
+        <!-- Editor & Preview Section -->
+        <div class="preview-section" id="previewSection">
+            <!-- Controls -->
+            <div class="controls">
+                <div class="control-group">
+                    <div class="label-row">
+                        <label>테두리 두께 (모든 사진 적용)</label>
+                        <span class="value-badge" id="widthValue">5px</span>
+                    </div>
+                    <!-- 1. 기본값 5px 설정 -->
+                    <input type="range" id="borderWidth" min="0" max="50" value="5">
+                </div>
 
-        <!-- Preview -->
-        <div class="preview-wrapper" id="previewWrapper">
-            <div class="count-badge" id="countBadge"></div>
+                <div class="control-group">
+                    <div class="label-row">
+                        <label>모서리 둥글기</label>
+                        <span class="value-badge" id="radiusValue">0px</span>
+                    </div>
+                    <input type="range" id="borderRadius" min="0" max="150" value="0">
+                </div>
+            </div>
+
+            <!-- Main Preview -->
+            <div style="text-align:center; margin-bottom:8px; font-weight:600; color:#4b5563;">▼ 미리보기 (첫 번째 사진)</div>
             <div class="preview-container">
                 <canvas id="canvas"></canvas>
             </div>
         </div>
 
-        <!-- Controls -->
-        <div class="controls" id="controls">
-            <div class="lock-control">
-                <span style="font-weight:600; font-size:0.95rem;">🔒 편집 설정 고정하기</span>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="lockSettings">
-                    <span class="slider"></span>
-                </label>
+        <!-- Download List Section -->
+        <div class="download-list-section" id="downloadListSection">
+            <div class="list-header">
+                <span>💾 저장 목록</span>
+                <span style="font-size:0.85rem; font-weight:normal; color:#6b7280;">버튼을 눌러 각각 저장하세요</span>
             </div>
-
-            <div class="control-group">
-                <div class="label-row">
-                    <label>테두리 두께</label>
-                    <span class="value-badge" id="widthValue">5px</span>
-                </div>
-                <input type="range" id="borderWidth" min="0" max="50" value="10">
-            </div>
-
-            <div class="control-group">
-                <div class="label-row">
-                    <label>모서리 둥글기</label>
-                    <span class="value-badge" id="radiusValue">0px</span>
-                </div>
-                <input type="range" id="borderRadius" min="0" max="150" value="0">
-            </div>
-        </div>
-
-        <!-- Actions -->
-        <div class="btn-group" id="btnGroup">
-            <div class="permission-notice" id="permissionNotice">
-                ⚠️ 사진이 여러 장일 경우, 브라우저에서<br>
-                <strong>'여러 파일 다운로드'를 허용</strong>해주세요.
-            </div>
-
-            <button class="btn btn-download-all" id="downloadAllBtn">
-                <span>⬇️ 모든 사진 저장 (개별 파일)</span>
-            </button>
             
-            <div class="progress-container" id="progressContainer">
-                <div class="progress-bar" id="progressBar"></div>
+            <div class="download-list" id="downloadList">
+                <!-- Javascript will populate this -->
             </div>
 
-            <button class="btn btn-reset" id="resetBtn">처음으로</button>
+            <button class="reset-btn" id="resetBtn">처음으로 (초기화)</button>
         </div>
     </div>
 
     <script>
-        // DOM Elements
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         
-        const controls = document.getElementById('controls');
-        const previewWrapper = document.getElementById('previewWrapper');
-        const thumbnailList = document.getElementById('thumbnailList');
-        const btnGroup = document.getElementById('btnGroup');
-        const countBadge = document.getElementById('countBadge');
-        const permissionNotice = document.getElementById('permissionNotice');
-        
-        const downloadAllBtn = document.getElementById('downloadAllBtn');
+        const previewSection = document.getElementById('previewSection');
+        const downloadListSection = document.getElementById('downloadListSection');
+        const downloadListEl = document.getElementById('downloadList');
         const resetBtn = document.getElementById('resetBtn');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressBar = document.getElementById('progressBar');
         
         const borderWidthInput = document.getElementById('borderWidth');
         const borderRadiusInput = document.getElementById('borderRadius');
         const widthValue = document.getElementById('widthValue');
         const radiusValue = document.getElementById('radiusValue');
-        const lockSettings = document.getElementById('lockSettings');
 
-        // State
         let imagesData = [];
-        let currentIndex = 0;
+        let isProcessing = false;
 
         // --- Event Listeners ---
 
-        // 1. Upload Click (Opens Album)
-        dropZone.addEventListener('click', () => {
-            fileInput.click();
-        });
+        dropZone.addEventListener('click', () => fileInput.click());
 
         fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length) {
-                handleFiles(Array.from(e.target.files));
-            }
+            if (e.target.files.length) handleFiles(Array.from(e.target.files));
         });
 
-        // 2. Drag & Drop Support
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
             dropZone.style.backgroundColor = '#dbeafe';
@@ -524,105 +411,29 @@
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropZone.style.backgroundColor = '#eff6ff';
-            if (e.dataTransfer.files.length) {
-                handleFiles(Array.from(e.dataTransfer.files));
-            }
+            if (e.dataTransfer.files.length) handleFiles(Array.from(e.dataTransfer.files));
         });
 
-        // 3. Control Inputs
-        borderWidthInput.addEventListener('input', updateCurrentPreview);
-        borderRadiusInput.addEventListener('input', updateCurrentPreview);
+        borderWidthInput.addEventListener('input', () => {
+            updatePreview();
+            widthValue.textContent = `${borderWidthInput.value}px`;
+        });
         
-        lockSettings.addEventListener('change', (e) => {
-            const isLocked = e.target.checked;
-            borderWidthInput.disabled = isLocked;
-            borderRadiusInput.disabled = isLocked;
-            dropZone.style.opacity = isLocked ? "0.5" : "1"; // 시각적 피드백
-        });
-
-        // 4. Download Logic (Sequential Individual Files - NO ZIP)
-        downloadAllBtn.addEventListener('click', async () => {
-            if (imagesData.length === 0) return;
-
-            // UI Update
-            downloadAllBtn.disabled = true;
-            permissionNotice.style.display = 'block'; // 알림 표시
-            progressContainer.style.display = 'block';
-            progressBar.style.width = '0%';
-
-            const thickness = parseInt(borderWidthInput.value);
-            const radius = parseInt(borderRadiusInput.value);
-
-            try {
-                // 모든 이미지를 순회하며 처리 및 다운로드 트리거
-                for (let i = 0; i < imagesData.length; i++) {
-                    // 진행 상황 표시
-                    downloadAllBtn.innerHTML = `<span>⏳ 저장 중... (${i + 1}/${imagesData.length})</span>`;
-                    
-                    const item = imagesData[i];
-                    
-                    // 임시 캔버스에 그리기
-                    const tempCanvas = document.createElement('canvas');
-                    tempCanvas.width = item.img.width;
-                    tempCanvas.height = item.img.height;
-                    const tempCtx = tempCanvas.getContext('2d');
-                    
-                    drawFrame(tempCtx, item.img, tempCanvas.width, tempCanvas.height, thickness, radius);
-                    
-                    // DataURL 생성
-                    const dataUrl = tempCanvas.toDataURL('image/png');
-                    
-                    // 다운로드 링크 생성 및 클릭
-                    const link = document.createElement('a');
-                    let baseName = item.name.substring(0, item.name.lastIndexOf('.')) || item.name;
-                    link.download = `framed_${baseName}.png`;
-                    link.href = dataUrl;
-                    
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-
-                    // 진행률 업데이트
-                    const percent = Math.round(((i + 1) / imagesData.length) * 100);
-                    progressBar.style.width = `${percent}%`;
-
-                    // *** 중요 ***
-                    // 브라우저가 다운로드 요청을 너무 빠르게 보내면 차단하거나 누락할 수 있습니다.
-                    // 따라서 각 다운로드 사이에 인위적인 지연(딜레이)을 줍니다.
-                    // 아이폰/사파리의 경우 이 딜레이가 있어도 팝업 허용이 필요할 수 있습니다.
-                    await new Promise(resolve => setTimeout(resolve, 800)); // 0.8초 대기
-                }
-
-                // 완료 표시
-                downloadAllBtn.innerHTML = `<span>✅ 저장 완료!</span>`;
-                setTimeout(() => {
-                    downloadAllBtn.disabled = false;
-                    downloadAllBtn.innerHTML = `<span>⬇️ 모든 사진 저장 (개별 파일)</span>`;
-                    progressContainer.style.display = 'none';
-                    permissionNotice.style.display = 'none';
-                }, 3000);
-
-            } catch (err) {
-                console.error(err);
-                alert("저장 중 오류가 발생했습니다. 브라우저의 팝업 차단을 확인해주세요.");
-                downloadAllBtn.disabled = false;
-                downloadAllBtn.innerHTML = `<span>⬇️ 모든 사진 저장 (개별 파일)</span>`;
-            }
+        borderRadiusInput.addEventListener('input', () => {
+            updatePreview();
+            radiusValue.textContent = `${borderRadiusInput.value}px`;
         });
 
         resetBtn.addEventListener('click', () => {
-            if(confirm('모든 작업을 초기화하시겠습니까?')) {
-                resetAll();
-            }
+            if(confirm('모든 작업을 초기화하시겠습니까?')) location.reload();
         });
 
-        // --- Core Functions ---
+        // --- Functions ---
 
         async function handleFiles(files) {
             const imageFiles = files.filter(f => f.type.startsWith('image/'));
             if (imageFiles.length === 0) return alert('이미지 파일만 선택해주세요.');
 
-            // 로딩 표시
             dropZone.innerHTML = '<div class="upload-text">사진을 불러오는 중...</div>';
 
             const promises = imageFiles.map(file => {
@@ -638,89 +449,153 @@
             });
 
             imagesData = await Promise.all(promises);
-            currentIndex = 0;
             
             if (imagesData.length > 0) {
-                showUI();
-                renderThumbnails();
-                updateCurrentPreview();
+                dropZone.style.display = 'none';
+                previewSection.classList.add('active');
+                downloadListSection.classList.add('active');
+                
+                // 첫 번째 이미지를 미리보기로 설정
+                updatePreview();
+                // 다운로드 리스트 생성
+                renderDownloadList();
             }
         }
 
-        function showUI() {
-            dropZone.style.display = 'none';
-            controls.classList.add('active');
-            previewWrapper.classList.add('active');
-            thumbnailList.classList.add('active');
-            btnGroup.classList.add('active');
-        }
-
-        function resetAll() {
-            location.reload(); // 가장 깔끔한 초기화
-        }
-
-        function renderThumbnails() {
-            thumbnailList.innerHTML = '';
-            imagesData.forEach((item, idx) => {
-                const thumb = document.createElement('img');
-                thumb.src = item.img.src;
-                thumb.className = `thumb-item ${idx === currentIndex ? 'active' : ''}`;
-                thumb.onclick = () => {
-                    currentIndex = idx;
-                    updateCurrentPreview();
-                    // 하이라이트 갱신
-                    document.querySelectorAll('.thumb-item').forEach((el, i) => {
-                        el.classList.toggle('active', i === idx);
-                    });
-                };
-                thumbnailList.appendChild(thumb);
-            });
-        }
-
-        function updateCurrentPreview() {
+        function updatePreview() {
             if (imagesData.length === 0) return;
-            const item = imagesData[currentIndex];
+            const item = imagesData[0]; // 항상 첫 번째 이미지만 프리뷰 (설정 확인용)
             
-            countBadge.textContent = `${currentIndex + 1} / ${imagesData.length}`;
-            widthValue.textContent = `${borderWidthInput.value}px`;
-            radiusValue.textContent = `${borderRadiusInput.value}px`;
-
             const thickness = parseInt(borderWidthInput.value);
             const radius = parseInt(borderRadiusInput.value);
 
-            // 캔버스 크기 맞춤
             canvas.width = item.img.width;
             canvas.height = item.img.height;
 
             drawFrame(ctx, item.img, canvas.width, canvas.height, thickness, radius);
         }
 
-        // 실제 그리기 로직 (테두리 + 라운딩)
+        function renderDownloadList() {
+            downloadListEl.innerHTML = '';
+            
+            imagesData.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'download-item';
+                
+                // 썸네일
+                const thumb = document.createElement('img');
+                thumb.src = item.img.src;
+                thumb.className = 'item-thumb';
+                
+                // 정보 영역
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'item-info';
+                
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'item-name';
+                nameDiv.textContent = item.name;
+                
+                const statusDiv = document.createElement('div');
+                statusDiv.className = 'item-status';
+                statusDiv.textContent = '대기 중';
+                
+                infoDiv.appendChild(nameDiv);
+                infoDiv.appendChild(statusDiv);
+                
+                // 저장 버튼
+                const btn = document.createElement('button');
+                btn.className = 'item-btn';
+                btn.innerHTML = '⬇️ 저장';
+                btn.onclick = () => processAndDownloadSingle(index, btn, statusDiv);
+
+                div.appendChild(thumb);
+                div.appendChild(infoDiv);
+                div.appendChild(btn);
+                
+                downloadListEl.appendChild(div);
+            });
+        }
+
+        async function processAndDownloadSingle(index, btnElement, statusElement) {
+            if (isProcessing) return; // 중복 클릭 방지 (간단한 락)
+            isProcessing = true;
+            
+            const originalText = btnElement.innerHTML;
+            btnElement.innerHTML = '⏳...';
+            btnElement.disabled = true;
+
+            try {
+                const item = imagesData[index];
+                const thickness = parseInt(borderWidthInput.value);
+                const radius = parseInt(borderRadiusInput.value);
+
+                // 임시 캔버스 생성
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = item.img.width;
+                tempCanvas.height = item.img.height;
+                const tempCtx = tempCanvas.getContext('2d');
+
+                // 그리기
+                drawFrame(tempCtx, item.img, tempCanvas.width, tempCanvas.height, thickness, radius);
+
+                // Blob 생성 및 다운로드
+                const blob = await new Promise(resolve => tempCanvas.toBlob(resolve, 'image/png'));
+                const url = URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                let baseName = item.name.substring(0, item.name.lastIndexOf('.')) || item.name;
+                link.download = `framed_${baseName}.png`;
+                link.href = url;
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                // 메모리 정리
+                setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+                // UI 업데이트
+                btnElement.classList.add('downloaded');
+                btnElement.innerHTML = '✅ 완료';
+                statusElement.textContent = '저장됨';
+                
+                // 1초 후 버튼 다시 활성화 (재다운로드 가능하게)
+                setTimeout(() => {
+                    btnElement.disabled = false;
+                    isProcessing = false;
+                    btnElement.innerHTML = '⬇️ 다시 저장';
+                }, 1000);
+
+            } catch (err) {
+                console.error(err);
+                btnElement.innerHTML = '❌ 실패';
+                statusElement.textContent = '오류 발생';
+                btnElement.disabled = false;
+                isProcessing = false;
+            }
+        }
+
+        // 그리기 로직
         function drawFrame(context, imageObj, w, h, thickness, rawRadius) {
             context.clearRect(0, 0, w, h);
             
-            // 반지름 보정 (이미지 크기의 절반을 넘지 않도록)
             const maxRadius = Math.min(w, h) / 2;
             let radius = Math.min(rawRadius, maxRadius);
             radius = Math.max(0, radius);
 
-            // 1. 이미지를 둥근 사각형으로 클리핑하여 그리기
             context.save();
             drawRoundedRectPath(context, w, h, radius);
             context.clip();
             context.drawImage(imageObj, 0, 0, w, h);
             context.restore();
 
-            // 2. 테두리 그리기
             if (thickness > 0) {
                 context.save();
                 context.strokeStyle = "#000000";
-                context.lineWidth = thickness * 2; // 클리핑 때문에 절반만 보이므로 2배 두께
+                context.lineWidth = thickness * 2;
                 context.lineJoin = "round";
-                
                 drawRoundedRectPath(context, w, h, radius);
                 context.stroke();
-                
                 context.restore();
             }
         }
